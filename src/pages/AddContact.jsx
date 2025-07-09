@@ -1,132 +1,149 @@
-import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
+
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
-import React, { useRef } from 'react';
+import useGlobalReducer from '../hooks/useGlobalReducer.jsx';
 
 const AddContact = () => {
+  const { dispatch } = useGlobalReducer();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const formRef = useRef(null);
 
-    const location = useLocation();
-    const { store, dispatch } = useGlobalReducer()
-    const [name, setName] = useState(location.state == null ? '' : location.state.contactName || '');
-    const [email, setEmail] = useState(location.state == null ? '' : location.state.contactEmail || '');
-    const [phone, setPhone] = useState(location.state == null ? '' : location.state.contactPhone || '');
-    const [address, setAddress] = useState(location.state == null ? '' : location.state.contactAddress || '');
-    const id = location.state == null ? '' : location.state.contactId || '';
-    console.log(id);
-    const navigate = useNavigate();
-    const formRef = useRef(null);
-    const handleClick = () => {
-        navigate('/');
+  const {
+    contactId: initialId,
+    contactName: initialName,
+    contactEmail: initialEmail,
+    contactPhone: initialPhone,
+    contactAddress: initialAddress
+  } = location.state || {};
+
+  const [id] = useState(initialId || '');
+  const [name, setName] = useState(initialName || '');
+  const [email, setEmail] = useState(initialEmail || '');
+  const [phone, setPhone] = useState(initialPhone || '');
+  const [address, setAddress] = useState(initialAddress || '');
+
+  const baseUrl  = 'https://playground.4geeks.com/contact/agendas/tgp034/contacts';
+
+  const handleSave = () => {
+    // Validación HTML5
+    if (!formRef.current.checkValidity()) {
+      formRef.current.reportValidity();
+      return;
     }
-    const baseUrl = "https://playground.4geeks.com/contact/";
 
-    const handleSave = () => {
-        const form = formRef.current;
-        // .checkValidity() comprueba HTML5 (required, type, pattern...)
-        if (!form.checkValidity()) {
-            // Muestra mensajes nativos de error
-            form.reportValidity();
-            return;
-        }
-        // Si es válido, llamamos a addContact con los datos
-        if (id) {
-            updateContact();
-        } else {
-            addContact();
-        }
-    };
+    const payload = { name, email, phone, address };
 
-    async function updateContact() {
-        const urlPutTask = baseUrl + "agendas/tgp034/contacts/" + id;
-        const payload = {
-            name: (document.getElementById("name").value || "Mike Anamendolla"),
-            phone: (document.getElementById("phone").value || "(870) 288-4149"),
-            email: (document.getElementById("email").value || "5842 Hillcrest Rd"),
-            address: (document.getElementById("address").value || "mike.ana@example.com")
-        }
-        
-        fetch(urlPutTask, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-            headers: { "Content-Type": "application/json" }
+    if (id) {
+      fetch(`${baseUrl}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(resp => {
+          if (!resp.ok) throw new Error(`Status ${resp.status}`);
+          return resp.json();
         })
-            .then(resp => {
-                console.log(resp.status); // Status code 201, 300, 400, etc.
-                if (resp.ok) {
-                    console.log("Contact edited");
-                    navigate('/'); // Redirect to the contacts page
-                }
-                return resp.json(); // Will attempt to parse the result to JSON and return a promise where you can use .then to continue the logic
-            })
-            .then(data => {
-                // This is where your code should start after the fetch is complete
-                console.log(data); // This will print the exact object received from the server to the console
-            })
-            .catch(error => {
-                // Error handling
-                console.log(error);
-            });
-    }
-
-
-    async function addContact() {
-        const urlPostTask = baseUrl + "agendas/tgp034/contacts";
-        const payload = {
-            name: (document.getElementById("name").value || "Mike Anamendolla"),
-            phone: (document.getElementById("phone").value || "(870) 288-4149"),
-            email: (document.getElementById("email").value || "5842 Hillcrest Rd"),
-            address: (document.getElementById("address").value || "mike.ana@example.com")
-        }
-        fetch(urlPostTask, {
-            method: "POST",
-            body: JSON.stringify(payload),
-            headers: { "Content-Type": "application/json" }
+        .then(result => {
+          dispatch({ type: 'UPDATE_CONTACT', payload: result });
+          navigate('/');
         })
-            .then(resp => {
-                console.log(resp.status); // Status code 201, 300, 400, etc.
-                if (resp.ok) {
-                    console.log("Contact added");
-                    navigate('/'); // Redirect to the contacts page
-                }
-                return resp.json(); // Will attempt to parse the result to JSON and return a promise where you can use .then to continue the logic
-            })
-            .then(data => {
-                // This is where your code should start after the fetch is complete
-                console.log(data); // This will print the exact object received from the server to the console
-            })
-            .catch(error => {
-                // Error handling
-                console.log(error);
-            });
-    }
+        .catch(err => {
+          console.error('Error updating contact:', err);
+        });
 
-    return (
-        <div className="text-center mt-5">
-            <h1>Add a new contact</h1>
-            <form ref={formRef} className="p-5 text-start" noValidate>
-                <div className="form-group py-2">
-                    <label htmlFor="name">Full name</label>
-                    <input type="text" value={name} onChange={e=> setName(e.target.value)} className="form-control mt-2" id="name" placeholder="Full name" required />
-                </div>
-                <div className="form-group py-2">
-                    <label htmlFor="email">Email</label>
-                    <input type="email" value={email} onChange={e=> setEmail(e.target.value)} className="form-control mt-2" id="email" placeholder="Enter email" required />
-                </div>
-                <div className="form-group py-2">
-                    <label htmlFor="phone">Phone</label>
-                    <input type="tel" value={phone} onChange={e=> setPhone(e.target.value)} pattern="^\+?\d{7,15}$" className="form-control mt-2" id="phone" placeholder="Enter phone" required />
-                </div>
-                <div className="form-group py-2">
-                    <label htmlFor="address">Address</label>
-                    <input type="text" value={address} onChange={e=> setAddress(e.target.value)} className="form-control mt-2" id="address" placeholder="Enter address" required />
-                </div>
-                <div className="form-group py-2 d-flex flex-column align-items-start">
-                    <button type="button" onClick={handleSave} className="btn btn-primary mt-3 w-100">Save</button>
-                    <Link onClick={handleClick}>or get back to contacts</Link>
-                </div>
-            </form>
+    } else {
+      fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(resp => {
+          if (!resp.ok) throw new Error(`Status ${resp.status}`);
+          return resp.json();
+        })
+        .then(result => {
+          dispatch({ type: 'ADD_CONTACT', payload: result });
+          navigate('/');
+        })
+        .catch(err => {
+          console.error('Error adding contact:', err);
+        });
+    }
+  };
+
+  return (
+    <div className="text-center mt-5">
+      <h1>{id ? 'Edit Contact' : 'Add a New Contact'}</h1>
+      <form ref={formRef} className="p-5 text-start" noValidate>
+        <div className="form-group py-2">
+          <label htmlFor="name">Full name</label>
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="form-control mt-2"
+            placeholder="Full name"
+            required
+          />
         </div>
-    );
+
+        <div className="form-group py-2">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="form-control mt-2"
+            placeholder="Enter email"
+            required
+          />
+        </div>
+
+        <div className="form-group py-2">
+          <label htmlFor="phone">Phone</label>
+          <input
+            id="phone"
+            type="text"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            pattern="^\+?\d{7,15}$"
+            className="form-control mt-2"
+            placeholder="Enter phone"
+            required
+          />
+        </div>
+
+        <div className="form-group py-2">
+          <label htmlFor="address">Address</label>
+          <input
+            id="address"
+            type="text"
+            value={address}
+            onChange={e => setAddress(e.target.value)}
+            className="form-control mt-2"
+            placeholder="Enter address"
+            required
+          />
+        </div>
+
+        <div className="form-group py-2 d-flex flex-column align-items-start">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="btn btn-primary mt-3 w-100"
+          >
+            Save
+          </button>
+          <Link to="/" className="mt-2">
+            or get back to contacts
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 export default AddContact;
